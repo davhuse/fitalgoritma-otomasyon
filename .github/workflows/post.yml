@@ -1,0 +1,65 @@
+name: Karusel Paylas
+
+on:
+  schedule:
+    # Türkiye saati (UTC+3): 09:00, 13:00, 18:00, 21:30
+    - cron: "0 6 * * *"
+    - cron: "0 10 * * *"
+    - cron: "0 15 * * *"
+    - cron: "30 18 * * *"
+  workflow_dispatch:
+    inputs:
+      deneme:
+        description: "Sadece üret, Instagram'da paylaşma"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paylas
+  cancel-in-progress: false
+
+jobs:
+  paylas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt && playwright install --with-deps chromium
+
+      - name: Metin üret
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python generate.py
+
+      - name: Görselleri üret
+        run: python render.py
+
+      - name: Görselleri herkese açık dala yükle
+        run: |
+          mkdir /tmp/yayin && cp out/*.jpg /tmp/yayin && cd /tmp/yayin
+          git init -q -b gecici
+          git -c user.name=bot -c user.email=bot@users.noreply.github.com add .
+          git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm gorseller
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gecici
+
+      - name: Instagram'da paylaş
+        if: ${{ !inputs.deneme }}
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IMG_BASE: https://raw.githubusercontent.com/${{ github.repository }}/gecici
+        run: python publish.py
+
+      - name: Geçmişi kaydet
+        if: ${{ !inputs.deneme }}
+        run: |
+          git config user.name bot && git config user.email bot@users.noreply.github.com
+          git add gecmis.json konular.json
+          git diff --cached --quiet || { git commit -qm "gecmis guncellendi" && git pull -q --rebase && git push -q; }
