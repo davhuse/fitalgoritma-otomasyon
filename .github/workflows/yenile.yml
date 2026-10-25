@@ -1,0 +1,29 @@
+name: Instagram Anahtarini Yenile
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"   # her pazartesi 08:00 TR
+  workflow_dispatch:
+
+jobs:
+  yenile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Anahtarı yenile (60 gün sayacı sıfırlanır)
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import os, requests, sys
+          eski = os.environ["IG_ACCESS_TOKEN"]
+          r = requests.get("https://graph.instagram.com/refresh_access_token",
+                           params={"grant_type": "ig_refresh_token", "access_token": eski}, timeout=30)
+          print("Durum:", r.status_code, {k: v for k, v in r.json().items() if k != "access_token"})
+          if not r.ok:
+              sys.exit("Yenileme başarısız: anahtarı Meta panelinden elle yenile")
+          yeni = r.json()["access_token"]
+          gun = r.json().get("expires_in", 0) // 86400
+          print("Yeni süre:", gun, "gün |", "token AYNI" if yeni == eski else "token DEĞİŞTİ")
+          if yeni != eski:
+              sys.exit("Token değişti; GitHub Secrets'taki IG_ACCESS_TOKEN elle güncellenmeli")
+          PY
