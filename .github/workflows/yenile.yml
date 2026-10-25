@@ -12,6 +12,7 @@ jobs:
       - name: Anahtarı yenile (60 gün sayacı sıfırlanır)
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           python3 - <<'PY'
           import os, requests, sys
@@ -25,5 +26,11 @@ jobs:
           gun = r.json().get("expires_in", 0) // 86400
           print("Yeni süre:", gun, "gün |", "token AYNI" if yeni == eski else "token DEĞİŞTİ")
           if yeni != eski:
-              sys.exit("Token değişti; GitHub Secrets'taki IG_ACCESS_TOKEN elle güncellenmeli")
+              # yeni anahtarı GitHub Secrets'a yaz (GH_PAT: sadece bu repo, sadece Secrets yetkisi)
+              import subprocess
+              if not os.environ.get("GH_TOKEN"):
+                  sys.exit("GH_PAT secret'ı yok; yeni anahtar kaydedilemedi")
+              subprocess.run(["gh", "secret", "set", "IG_ACCESS_TOKEN", "--repo", os.environ["GITHUB_REPOSITORY"]],
+                             input=yeni.encode(), check=True, env=os.environ)
+              print("Yeni anahtar GitHub Secrets'a kaydedildi")
           PY
