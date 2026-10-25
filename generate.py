@@ -2,14 +2,34 @@
 import json, os, random, re, sys, time
 import requests
 
-MODELLER = [os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"), "gemini-2.5-flash-lite"]
+def modelleri_bul():
+    """Hesabın kullanabildiği Gemini modellerinden en yeni 'flash' ve 'flash-lite' modellerini seçer."""
+    if os.environ.get("GEMINI_MODEL"):
+        return [os.environ["GEMINI_MODEL"]]
+    r = requests.get("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
+                     headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]}, timeout=30)
+    r.raise_for_status()
+    ad = [m["name"].split("/")[-1] for m in r.json()["models"] if "generateContent" in m.get("supportedGenerationMethods", [])]
+    ad = [a for a in ad if a.startswith("gemini") and "flash" in a
+          and not re.search(r"tts|image|embed|live|audio|robotics|computer|preview|exp|thinking|latest", a)]
+    surum = lambda a: [int(x) for x in re.findall(r"\d+", a)]
+    flash = sorted((a for a in ad if "lite" not in a), key=surum, reverse=True)
+    lite = sorted((a for a in ad if "lite" in a), key=surum, reverse=True)
+    secilen = flash[:2] + lite[:1]
+    print("Modeller:", secilen)
+    return secilen or sys.exit("Uygun Gemini modeli bulunamadı")
+
+
+MODELLER = None
 KATEGORILER = ["kardiyo", "kuvvet", "beslenme", "toparlanma", "motivasyon"]
 
 
 def claude(prompt, system, max_tokens=4000):
     """Ad eski kaldı; Gemini'yi çağırır ve JSON döndürür."""
+    global MODELLER
+    MODELLER = MODELLER or modelleri_bul()
     for deneme in range(5):
-        model = MODELLER[0] if deneme < 3 else MODELLER[-1]  # kota/yoğunlukta hafif modele düş
+        model = MODELLER[min(deneme // 2, len(MODELLER) - 1)]  # hata sürerse sıradaki modele geç
         try:
             r = requests.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
