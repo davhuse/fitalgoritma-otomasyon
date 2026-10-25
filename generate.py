@@ -78,12 +78,7 @@ def gundem_konu(gecmis):
         return None
     onceki = [g["konu"] for g in gecmis[-40:]]
     sec = claude(f"Aşağıdaki gündem notlarından, Instagram karuseli için en merak uyandırıcı ve bilimsel olarak sağlam TEK konuyu seç. "
-                 f"Şunlara benzer olmasın: {onceki}.
-
-NOTLAR:
-{ham[:6000]}
-
-"
+                 f"Şunlara benzer olmasın: {onceki}.\n\nNOTLAR:\n{ham[:6000]}\n\n"
                  f"Sadece JSON ver: " + '{"konu": "soru ya da iddia biçiminde başlık", "kategori": "' + "|".join(KATEGORILER) +
                  '", "bilgi": "bu konuyla ilgili notlardaki somut ve doğru bilgiler, 600 karakteri geçmesin"}',
                  "Sadece geçerli JSON döndür. Notlarda olmayan bilgi uydurma.")
@@ -146,7 +141,8 @@ def main():
     konu = (gundem_konu(gecmis) if random.random() < 0.7 else None) or konu_sec()
     print("Konu:", konu["konu"], "|", konu["kategori"])
     for _ in range(3):
-        post = claude(f"Konu: {konu['konu']}\nKategori: {konu['kategori']}\n\n{SEMA}", SISTEM)
+        bilgi = f"Güncel bilgi (yalnızca bunlara dayan, üstüne ekleme yapma): {konu['bilgi']}\n" if konu.get("bilgi") else ""
+        post = claude(f"Konu: {konu['konu']}\nKategori: {konu['kategori']}\n{bilgi}\n{SEMA}", SISTEM)
         if gecerli(post):
             break
         print("Metin sınırlara uymadı, yeniden üretiliyor", file=sys.stderr)
