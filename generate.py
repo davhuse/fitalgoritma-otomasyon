@@ -49,6 +49,49 @@ def claude(prompt, system, max_tokens=4000):
     sys.exit("Gemini 5 denemede cevap veremedi")
 
 
+def ara(prompt):
+    """Google aramasıyla güncel bilgi toplar (düz metin; arama aracı JSON moduyla birlikte kullanılamaz)."""
+    global MODELLER
+    MODELLER = MODELLER or modelleri_bul()
+    for model in MODELLER:
+        try:
+            r = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]},
+                json={"contents": [{"role": "user", "parts": [{"text": prompt}]}], "tools": [{"google_search": {}}]},
+                timeout=120)
+            r.raise_for_status()
+            return "".join(p.get("text", "") for p in r.json()["candidates"][0]["content"]["parts"])
+        except Exception as e:
+            print("Arama hatası:", e, file=sys.stderr)
+    return None
+
+
+def gundem_konu(gecmis):
+    """Güncel gündemden yeni bir konu + doğrulanmış bilgi çıkarır; olmazsa None (havuza düşülür)."""
+    bugun = time.strftime("%d.%m.%Y")
+    ham = ara(f"Bugün {bugun}. Türkiye'de ve dünyada fitness, spor bilimi, antrenman, sağlıklı beslenme ve toparlanma alanında "
+              "son günlerde gündemde olan 6 konuyu bul (yeni bilimsel çalışmalar, sosyal medyada tartışılan antrenman/beslenme akımları, "
+              "sıkça sorulan sorular). Her biri için: konu başlığı ve güvenilir kaynaklara dayanan 2-3 somut bilgi yaz. "
+              "Kişi ismi, marka, dedikodu ve kanıtı zayıf ya da tehlikeli iddiaları alma.")
+    if not ham:
+        return None
+    onceki = [g["konu"] for g in gecmis[-40:]]
+    sec = claude(f"Aşağıdaki gündem notlarından, Instagram karuseli için en merak uyandırıcı ve bilimsel olarak sağlam TEK konuyu seç. "
+                 f"Şunlara benzer olmasın: {onceki}.
+
+NOTLAR:
+{ham[:6000]}
+
+"
+                 f"Sadece JSON ver: " + '{"konu": "soru ya da iddia biçiminde başlık", "kategori": "' + "|".join(KATEGORILER) +
+                 '", "bilgi": "bu konuyla ilgili notlardaki somut ve doğru bilgiler, 600 karakteri geçmesin"}',
+                 "Sadece geçerli JSON döndür. Notlarda olmayan bilgi uydurma.")
+    if sec.get("kategori") in KATEGORILER and sec.get("konu"):
+        return sec
+    return None
+
+
 def konu_sec():
     konular = json.load(open("konular.json", encoding="utf-8"))
     gecmis = json.load(open("gecmis.json", encoding="utf-8"))
@@ -98,7 +141,9 @@ def gecerli(p):
 
 
 def main():
-    konu = konu_sec()
+    gecmis = json.load(open("gecmis.json", encoding="utf-8"))
+    # gönderilerin çoğu güncel gündemden, kalanı hazır havuzdan
+    konu = (gundem_konu(gecmis) if random.random() < 0.7 else None) or konu_sec()
     print("Konu:", konu["konu"], "|", konu["kategori"])
     for _ in range(3):
         post = claude(f"Konu: {konu['konu']}\nKategori: {konu['kategori']}\n\n{SEMA}", SISTEM)
