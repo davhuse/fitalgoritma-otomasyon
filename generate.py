@@ -49,39 +49,33 @@ def claude(prompt, system, max_tokens=4000):
     sys.exit("Gemini 5 denemede cevap veremedi")
 
 
-def ara(prompt):
-    """Google aramasıyla güncel bilgi toplar (düz metin; arama aracı JSON moduyla birlikte kullanılamaz)."""
-    global MODELLER
-    MODELLER = MODELLER or modelleri_bul()
-    for model in MODELLER:
+def haberler():
+    """Google Haberler RSS'ten son 3 günün fitness/beslenme başlıkları (ücretsiz, anahtarsız)."""
+    import urllib.parse, xml.etree.ElementTree as ET
+    satir = []
+    for q in ("fitness", "antrenman programı", "protein kreatin", "kilo verme diyet", "koşu", "kas yapmak"):
         try:
-            r = requests.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]},
-                json={"contents": [{"role": "user", "parts": [{"text": prompt}]}], "tools": [{"google_search": {}}]},
-                timeout=120)
-            r.raise_for_status()
-            return "".join(p.get("text", "") for p in r.json()["candidates"][0]["content"]["parts"])
+            u = "https://news.google.com/rss/search?hl=tr&gl=TR&ceid=TR:tr&q=" + urllib.parse.quote(q + " when:3d")
+            kok = ET.fromstring(requests.get(u, timeout=30).content)
+            satir += [i.findtext("title") for i in kok.iter("item")][:8]
         except Exception as e:
-            print("Arama hatası:", e, file=sys.stderr)
-    return None
+            print("Haber hatası:", e, file=sys.stderr)
+    return "\n".join(f"- {t}" for t in dict.fromkeys(satir))
 
 
 def gundem_konu(gecmis):
-    """Güncel gündemden yeni bir konu + doğrulanmış bilgi çıkarır; olmazsa None (havuza düşülür)."""
-    bugun = time.strftime("%d.%m.%Y")
-    ham = ara(f"Bugün {bugun}. Türkiye'de ve dünyada fitness, spor bilimi, antrenman, sağlıklı beslenme ve toparlanma alanında "
-              "son günlerde gündemde olan 6 konuyu bul (yeni bilimsel çalışmalar, sosyal medyada tartışılan antrenman/beslenme akımları, "
-              "sıkça sorulan sorular). Her biri için: konu başlığı ve güvenilir kaynaklara dayanan 2-3 somut bilgi yaz. "
-              "Kişi ismi, marka, dedikodu ve kanıtı zayıf ya da tehlikeli iddiaları alma.")
-    if not ham:
+    """Güncel haber başlıklarından yeni bir konu çıkarır; olmazsa None (havuza düşülür)."""
+    ham = haberler()
+    print("Haber başlığı sayısı:", ham.count(chr(10)) + 1)
+    if len(ham) < 200:
         return None
     onceki = [g["konu"] for g in gecmis[-40:]]
-    sec = claude(f"Aşağıdaki gündem notlarından, Instagram karuseli için en merak uyandırıcı ve bilimsel olarak sağlam TEK konuyu seç. "
-                 f"Şunlara benzer olmasın: {onceki}.\n\nNOTLAR:\n{ham[:6000]}\n\n"
-                 f"Sadece JSON ver: " + '{"konu": "soru ya da iddia biçiminde başlık", "kategori": "' + "|".join(KATEGORILER) +
-                 '", "bilgi": "bu konuyla ilgili notlardaki somut ve doğru bilgiler, 600 karakteri geçmesin"}',
-                 "Sadece geçerli JSON döndür. Notlarda olmayan bilgi uydurma.")
+    sec = claude("Aşağıda son günlerin fitness/spor/beslenme haber başlıkları var. Bunlardan Instagram karuseli için en merak uyandırıcı, "
+                 "bilimsel olarak sağlam TEK konuyu seç. Kişi ismi, marka, dedikodu ve kanıtı zayıf ya da tehlikeli iddiaları seçme. "
+                 f"Şunlara benzer olmasın: {onceki}.\n\nBAŞLIKLAR:\n{ham[:5000]}\n\n"
+                 'Sadece JSON ver: {"konu": "soru ya da iddia biçiminde başlık, haber başlığını kopyalama", "kategori": "'
+                 + "|".join(KATEGORILER) + '", "bilgi": "bu konuda genel kabul görmüş bilimsel gerçekler; başlıktaki iddiayı doğrulanmadan tekrarlama, 600 karakteri geçmesin"}',
+                 "Sadece geçerli JSON döndür. Emin olmadığın bilgiyi yazma.")
     if sec.get("kategori") in KATEGORILER and sec.get("konu"):
         return sec
     return None
