@@ -1,28 +1,32 @@
-"""Konu seçer, Claude ile karusel metni + caption + hashtag üretir -> out/post.json"""
+"""Konu seçer, Gemini ile karusel metni + caption + hashtag üretir -> out/post.json"""
 import json, os, random, re, sys, time
 import requests
 
-MODEL = "claude-sonnet-5-5"
+MODELLER = [os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"), "gemini-2.5-flash-lite"]
 KATEGORILER = ["kardiyo", "kuvvet", "beslenme", "toparlanma", "motivasyon"]
 
 
-def claude(prompt, system, max_tokens=3500):
-    for deneme in range(4):
+def claude(prompt, system, max_tokens=4000):
+    """Ad eski kaldı; Gemini'yi çağırır ve JSON döndürür."""
+    for deneme in range(5):
+        model = MODELLER[0] if deneme < 3 else MODELLER[-1]  # kota/yoğunlukta hafif modele düş
         try:
             r = requests.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={"x-api-key": os.environ["ANTHROPIC_API_KEY"], "anthropic-version": "2023-06-01"},
-                json={"model": MODEL, "max_tokens": max_tokens, "system": system,
-                      "messages": [{"role": "user", "content": prompt}]},
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]},
+                json={"systemInstruction": {"parts": [{"text": system}]},
+                      "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                      "generationConfig": {"responseMimeType": "application/json", "maxOutputTokens": max_tokens,
+                                           "temperature": 0.9}},
                 timeout=120,
             )
             r.raise_for_status()
-            metin = r.json()["content"][0]["text"]
-            return json.loads(re.search(r"[\[{].*[\]}]", metin, re.S).group(0))
+            metin = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            return json.loads(metin)
         except Exception as e:  # ağ, kota ya da bozuk JSON: tekrar dene
-            print("Claude hatası:", e, file=sys.stderr)
-            time.sleep(5 * (deneme + 1))
-    sys.exit("Claude 4 denemede cevap veremedi")
+            print("Gemini hatası:", e, file=sys.stderr)
+            time.sleep(8 * (deneme + 1))
+    sys.exit("Gemini 5 denemede cevap veremedi")
 
 
 def konu_sec():
