@@ -28,8 +28,8 @@ def claude(prompt, system, max_tokens=4000):
     """Ad eski kaldı; Gemini'yi çağırır ve JSON döndürür."""
     global MODELLER
     MODELLER = MODELLER or modelleri_bul()
-    for deneme in range(5):
-        model = MODELLER[min(deneme // 2, len(MODELLER) - 1)]  # hata sürerse sıradaki modele geç
+    for deneme in range(8):
+        model = MODELLER[deneme % len(MODELLER)]  # hata olunca sıradaki modeli dene
         try:
             r = requests.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
@@ -38,15 +38,15 @@ def claude(prompt, system, max_tokens=4000):
                       "contents": [{"role": "user", "parts": [{"text": prompt}]}],
                       "generationConfig": {"responseMimeType": "application/json", "maxOutputTokens": max_tokens,
                                            "temperature": 0.9}},
-                timeout=120,
+                timeout=90,
             )
             r.raise_for_status()
             metin = r.json()["candidates"][0]["content"]["parts"][0]["text"]
             return json.loads(metin)
         except Exception as e:  # ağ, kota ya da bozuk JSON: tekrar dene
             print("Gemini hatası:", e, file=sys.stderr)
-            time.sleep(8 * (deneme + 1))
-    sys.exit("Gemini 5 denemede cevap veremedi")
+            time.sleep(min(5 * (deneme + 1), 25))
+    sys.exit("Gemini 8 denemede cevap veremedi")
 
 
 def haberler():
