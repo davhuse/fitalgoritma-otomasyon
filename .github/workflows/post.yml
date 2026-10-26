@@ -2,11 +2,8 @@ name: Karusel Paylas
 
 on:
   schedule:
-    # Türkiye saati (UTC+3): 09:00, 13:00, 18:00, 21:30
-    - cron: "0 6 * * *"
-    - cron: "0 10 * * *"
-    - cron: "0 15 * * *"
-    - cron: "30 18 * * *"
+    # Her yarım saatte uyanır; gate.py paylaşım zamanı gelmişse devam eder (GitHub zamanlayıcısı geç/eksik çalışabildiği için)
+    - cron: "7,37 * * * *"
   workflow_dispatch:
     inputs:
       deneme:
@@ -27,21 +24,31 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+
+      - name: Paylaşım zamanı geldi mi?
+        id: kapi
+        run: python3 gate.py
+
       - uses: actions/setup-python@v5
+        if: steps.kapi.outputs.devam == 'true'
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt && playwright install --with-deps chromium
+      - if: steps.kapi.outputs.devam == 'true'
+        run: pip install -r requirements.txt && playwright install --with-deps chromium
 
       - name: Metin üret
+        if: steps.kapi.outputs.devam == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python generate.py
 
       - name: Görselleri üret
+        if: steps.kapi.outputs.devam == 'true'
         run: python render.py
 
       - name: Görselleri herkese açık dala yükle
+        if: steps.kapi.outputs.devam == 'true'
         run: |
           mkdir /tmp/yayin && cp out/*.jpg /tmp/yayin && cd /tmp/yayin
           git init -q -b gecici
@@ -50,7 +57,7 @@ jobs:
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gecici
 
       - name: Instagram'da paylaş
-        if: ${{ !inputs.deneme }}
+        if: ${{ steps.kapi.outputs.devam == 'true' && !inputs.deneme }}
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
@@ -58,7 +65,7 @@ jobs:
         run: python publish.py
 
       - name: Geçmişi kaydet
-        if: ${{ !inputs.deneme }}
+        if: ${{ steps.kapi.outputs.devam == 'true' && !inputs.deneme }}
         run: |
           git config user.name bot && git config user.email bot@users.noreply.github.com
           git add gecmis.json konular.json
