@@ -4,6 +4,8 @@ on:
   schedule:
     # Her yarım saatte uyanır; gate.py paylaşım zamanı gelmişse devam eder (GitHub zamanlayıcısı geç/eksik çalışabildiği için)
     - cron: "7,37 * * * *"
+  repository_dispatch:
+    types: [zamanla]  # dış saat (bilgisayardan bağımsız) her 15 dk'da bunu tetikler; gate.py zamanı karar verir
   workflow_dispatch:
     inputs:
       deneme:
