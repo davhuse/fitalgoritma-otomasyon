@@ -130,6 +130,9 @@ Kurallar:
 - Tıbbi tavsiye verme. Gerekiyorsa caption'da "sağlık sorunun varsa uzmana danış" de.
 - Kapak merak uyandırsın ama yalan vaat etmesin. Her içerik slaytı TEK fikir anlatsın.
 - Slayt metinlerinde emoji kullanma. Caption'da en fazla 3 emoji.
+- Karusel akışı: 1) merak uyandıran kapak 2) yaygın yanlış inanış ya da sorunun özü 3) bilimin söylediği 4) bugün uygulayabileceğin somut adım (süre, tekrar, porsiyon gibi genel kabul gören aralıklar) 5) en sık yapılan hata ya da dikkat edilecek nokta. Genel geçer cümle yazma; her slayt okuyana yeni bir şey öğretsin.
+- Haberdeki kişi ya da sporcu varsa kapakta ya da ilk slaytta adıyla an, ama kişi hakkında doğrulanmamış iddia yazma; kanıtı kişiden bağımsız anlat.
+- Caption ilk satırı kapaktan farklı, güçlü bir kanca olsun; sonda net bir soru sor.
 - Vurgulanacak 1-3 kelimeyi **çift yıldız** içine al (sadece kapak başlığı ve içerik başlıklarında).
 Sadece geçerli JSON döndür."""
 
