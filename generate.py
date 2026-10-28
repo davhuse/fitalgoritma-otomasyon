@@ -53,14 +53,21 @@ def haberler():
     """Google Haberler RSS'ten son 3 günün fitness/beslenme başlıkları (ücretsiz, anahtarsız)."""
     import urllib.parse, xml.etree.ElementTree as ET
     satir = []
-    for q in ("fitness", "antrenman programı", "protein kreatin", "kilo verme diyet", "koşu", "kas yapmak"):
+    fenomenler = json.load(open("fenomenler.json", encoding="utf-8"))
+    for q in [f'"{f}"' for f in fenomenler] + ["spor bilimi yeni araştırma", "fitness", "antrenman programı", "protein kreatin", "koşu", "kas yapmak"]:
         try:
             u = "https://news.google.com/rss/search?hl=tr&gl=TR&ceid=TR:tr&q=" + urllib.parse.quote(q + " when:3d")
             kok = ET.fromstring(requests.get(u, timeout=30).content)
-            satir += [i.findtext("title") for i in kok.iter("item")][:8]
+            satir += [i.findtext("title") for i in kok.iter("item")][:6]
         except Exception as e:
             print("Haber hatası:", e, file=sys.stderr)
     return "\n".join(f"- {t}" for t in dict.fromkeys(satir))
+
+
+def benzer(konu, onceki):
+    """Son konularla 2+ ortak anahtar kelime (ilk 5 harf) varsa aynı konu sayılır."""
+    kok = lambda t: {w[:5] for w in re.findall(r"\w{5,}", t.lower())}
+    return any(len(kok(konu) & kok(o)) >= 2 for o in onceki)
 
 
 def gundem_konu(gecmis):
@@ -70,15 +77,23 @@ def gundem_konu(gecmis):
     if len(ham) < 200:
         return None
     onceki = [g["konu"] for g in gecmis[-40:]]
-    sec = claude("Aşağıda son günlerin fitness/spor/beslenme haber başlıkları var. Bunlardan Instagram karuseli için en merak uyandırıcı, "
-                 "bilimsel olarak sağlam TEK konuyu seç. Kişi ismi, marka, dedikodu ve kanıtı zayıf ya da tehlikeli iddiaları seçme. "
+    for _ in range(3):
+        sec = _sec(ham, onceki)
+        if sec and not benzer(sec["konu"], onceki[-25:]):
+            return sec
+        print("Konu yakın zamanda işlendi, yenisi seçiliyor:", sec and sec["konu"], file=sys.stderr)
+        onceki += [sec["konu"]] if sec else []
+
+
+def _sec(ham, onceki):
+    sec = claude("Aşağıda son günlerin fitness/spor/beslenme haber başlıkları var. Bunlardan Instagram karuseli için en merak uyandırıcı TEK konuyu seç. "
+                 "Türkiye'deki fitness fenomenleri/sporcular (başlıklardaki isimler) ve yeni spor gelişmeleri hakkında haber varsa onları ÖNCELİKLİ seç, kişiyi konuda adıyla an. "
+                 "Dedikodu, özel hayat ve kanıtı zayıf ya da tehlikeli iddiaları seçme. "
                  f"Şunlara benzer olmasın: {onceki}.\n\nBAŞLIKLAR:\n{ham[:5000]}\n\n"
                  'Sadece JSON ver: {"konu": "soru ya da iddia biçiminde başlık, haber başlığını kopyalama", "kategori": "'
                  + "|".join(KATEGORILER) + '", "bilgi": "bu konuda genel kabul görmüş bilimsel gerçekler; başlıktaki iddiayı doğrulanmadan tekrarlama, 600 karakteri geçmesin"}',
                  "Sadece geçerli JSON döndür. Emin olmadığın bilgiyi yazma.")
-    if sec.get("kategori") in KATEGORILER and sec.get("konu"):
-        return sec
-    return None
+    return sec if sec.get("kategori") in KATEGORILER and sec.get("konu") else None
 
 
 def konu_sec():
@@ -99,6 +114,8 @@ def konu_sec():
         json.dump(konular, open("konular.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
         bos = [k for k in konular if k["konu"] not in kullanilan]
     son = [g["kategori"] for g in gecmis[-2:]]  # aynı kategori üst üste gelmesin
+    onceki = [g["konu"] for g in gecmis[-25:]]
+    bos = [k for k in bos if not benzer(k["konu"], onceki)] or bos
     aday = [k for k in bos if k["kategori"] not in son] or bos
     return random.choice(aday)
 
@@ -132,7 +149,7 @@ def gecerli(p):
 def main():
     gecmis = json.load(open("gecmis.json", encoding="utf-8"))
     # gönderilerin çoğu güncel gündemden, kalanı hazır havuzdan
-    konu = (gundem_konu(gecmis) if random.random() < 0.7 else None) or konu_sec()
+    konu = (gundem_konu(gecmis) if random.random() < 0.85 else None) or konu_sec()
     print("Konu:", konu["konu"], "|", konu["kategori"])
     for _ in range(3):
         bilgi = f"Güncel bilgi (yalnızca bunlara dayan, üstüne ekleme yapma): {konu['bilgi']}\n" if konu.get("bilgi") else ""
