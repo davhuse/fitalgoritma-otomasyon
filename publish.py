@@ -48,7 +48,17 @@ for c in cocuklar:
 caption = post["caption"].strip() + "\n\n" + " ".join("#" + h.lstrip("#") for h in post["hashtagler"])
 kap = api(f"{UID}/media", media_type="CAROUSEL", children=",".join(cocuklar), caption=caption)["id"]
 hazir_bekle(kap)
-medya = api(f"{UID}/media_publish", creation_id=kap)["id"]
+try:
+    medya = api(f"{UID}/media_publish", creation_id=kap)["id"]
+except SystemExit as e:
+    # Instagram hata verse de postu yayınlayabiliyor: son medyalara bakıp doğrula, yoksa tekrar paylaşılmasın
+    time.sleep(20)
+    son = requests.get(f"{HOST}/{UID}/media", params={"fields": "id,caption,timestamp", "limit": 5, "access_token": TOKEN}, timeout=60).json().get("data", [])
+    esles = [m for m in son if (m.get("caption") or "")[:60] == caption[:60]]
+    if not esles:
+        raise
+    medya = esles[0]["id"]
+    print("Hata verdi ama post yayında, medya id:", medya)
 print("Paylaşıldı, medya id:", medya)
 
 gecmis = json.load(open("gecmis.json", encoding="utf-8"))
