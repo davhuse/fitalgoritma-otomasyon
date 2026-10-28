@@ -64,10 +64,13 @@ def haberler():
     return "\n".join(f"- {t}" for t in dict.fromkeys(satir))
 
 
+GENEL = {"antre", "spor", "fitne", "sağlı", "egzer", "gerçe", "yapma", "nasıl", "nedir", "olur", "faydal", "zararl", "hareke"}
+
+
 def benzer(konu, onceki):
-    """Son konularla 2+ ortak anahtar kelime (ilk 5 harf) varsa aynı konu sayılır."""
-    kok = lambda t: {w[:5] for w in re.findall(r"\w{5,}", t.lower())}
-    return any(len(kok(konu) & kok(o)) >= 2 for o in onceki)
+    """Son konularla ortak anahtar kelime (ilk 5 harf, genel kelimeler hariç) varsa aynı konu sayılır."""
+    kok = lambda t: {w[:5] for w in re.findall(r"\w{4,}", t.lower())} - GENEL
+    return any(kok(konu) & kok(o) for o in onceki)
 
 
 def gundem_konu(gecmis):
@@ -79,7 +82,7 @@ def gundem_konu(gecmis):
     onceki = [g["konu"] for g in gecmis[-40:]]
     for _ in range(3):
         sec = _sec(ham, onceki)
-        if sec and not benzer(sec["konu"], onceki[-25:]):
+        if sec and not benzer(sec["konu"], onceki[-12:]):
             return sec
         print("Konu yakın zamanda işlendi, yenisi seçiliyor:", sec and sec["konu"], file=sys.stderr)
         onceki += [sec["konu"]] if sec else []
@@ -114,7 +117,7 @@ def konu_sec():
         json.dump(konular, open("konular.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
         bos = [k for k in konular if k["konu"] not in kullanilan]
     son = [g["kategori"] for g in gecmis[-2:]]  # aynı kategori üst üste gelmesin
-    onceki = [g["konu"] for g in gecmis[-25:]]
+    onceki = [g["konu"] for g in gecmis[-12:]]
     bos = [k for k in bos if not benzer(k["konu"], onceki)] or bos
     aday = [k for k in bos if k["kategori"] not in son] or bos
     return random.choice(aday)
