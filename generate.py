@@ -54,7 +54,7 @@ def haberler():
     import urllib.parse, xml.etree.ElementTree as ET
     satir = []
     fenomenler = json.load(open("fenomenler.json", encoding="utf-8"))
-    for q in [f'"{f}"' for f in fenomenler] + ["spor bilimi yeni araştırma", "fitness", "antrenman programı", "protein kreatin", "koşu", "kas yapmak"]:
+    for q in [f'"{f}"' for f in fenomenler] + ["spor hocası açıkladı", "fitness fenomeni", "vücut geliştirme", "Türk sporcu antrenman", "spor bilimi yeni araştırma", "fitness", "antrenman programı", "protein kreatin", "koşu", "kas yapmak"]:
         try:
             u = "https://news.google.com/rss/search?hl=tr&gl=TR&ceid=TR:tr&q=" + urllib.parse.quote(q + " when:3d")
             kok = ET.fromstring(requests.get(u, timeout=30).content)

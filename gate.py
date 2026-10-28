@@ -20,6 +20,11 @@ else:
         paylasimlar = [datetime.strptime(g["tarih"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
                        for g in json.load(open("gecmis.json", encoding="utf-8"))]
         devam = not any(p >= pencere for p in paylasimlar)
+        try:  # Instagram engeli sonrası bekleme
+            if datetime.now(timezone.utc) < datetime.strptime(json.load(open("bekle.json"))["until"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc):
+                devam = False
+        except (OSError, KeyError, ValueError):
+            pass
     print("Şimdi (TR):", simdi.strftime("%H:%M"), "| pencere:", gecen[-1].strftime("%H:%M") if gecen else "-")
 
 print("Karar: paylaş" if devam else "Karar: bu pencerede zaten paylaşıldı / zamanı değil")

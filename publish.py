@@ -10,6 +10,9 @@ BASE = os.environ["IMG_BASE"]  # örn. https://raw.githubusercontent.com/kullani
 def api(yol, **p):
     r = requests.post(f"{HOST}/{yol}", data={**p, "access_token": TOKEN}, timeout=60)
     if not r.ok:
+        if '"code":4' in r.text or "2207051" in r.text:  # Instagram engeli: 2 saat dinlen, her 15 dk'da yeniden deneme
+            json.dump({"until": time.strftime("%Y-%m-%d %H:%M", time.gmtime(time.time() + 7200))}, open("bekle.json", "w"))
+            sys.exit(f"Instagram engeli, 2 saat beklenecek: {r.text}")
         sys.exit(f"Instagram hatası ({yol}): {r.text}")
     return r.json()
 
