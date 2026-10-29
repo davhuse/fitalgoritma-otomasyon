@@ -71,9 +71,11 @@ def main():
     sablon = "AB"[len(gecmis) % 2]
     foto_dir = KOK / "foto" / post["kategori"]
     fotolar = sorted(foto_dir.glob("*.jpg"))
-    kullanim = {g.get("foto"): i for i, g in enumerate(gecmis)}  # en uzun süredir kullanılmayan foto önce
-    en_eski = min(kullanim.get(f.name, -1) for f in fotolar)
-    foto = random.choice([f for f in fotolar if kullanim.get(f.name, -1) == en_eski])
+    foto = KOK / "foto" / str(post.get("foto") or "")  # Gemini'nin konuya göre seçtiği
+    if not foto.is_file():  # seçim yoksa/geçersizse: kategoride en uzun süredir kullanılmayan
+        kullanim = {g.get("foto"): i for i, g in enumerate(gecmis)}
+        en_eski = min(kullanim.get(f.name, -1) for f in fotolar)
+        foto = random.choice([f for f in fotolar if kullanim.get(f.name, -1) == en_eski])
     damga = time.strftime("%y%m%d%H%M")
 
     sl = [sayfa(sablon, foto, True, f"<span class=chip>{html.escape(post['kapak']['etiket'])}</span><br><h1>{vurgu(post['kapak']['baslik'])}</h1>")]

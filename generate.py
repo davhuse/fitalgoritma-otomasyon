@@ -143,6 +143,15 @@ SEMA = """Şu JSON şemasıyla cevap ver:
  "caption": "en fazla 700 karakter. İlk satır dikkat çeken kanca. Kısa paragraflar. Sonda yorum sorusu ve takip çağrısı.",
  "hashtagler": ["10 adet, # işaretsiz, Türkçe ve İngilizce karışık, aşırı genel olmayan"]}"""
 
+def foto_listesi(gecmis):
+    """Son 12 postta kullanılmayan fotoğrafları açıklamalarıyla verir; Gemini konuya en uygun olanı seçer."""
+    acik = json.load(open("foto_aciklama.json", encoding="utf-8"))
+    son = {g.get("foto") for g in gecmis[-12:]}
+    satir = "\n".join(f"{k}: {v}" for k, v in acik.items() if k.split("/")[1] not in son)
+    return ('Ek alan: "foto": aşağıdaki listeden konuya A\nAMCA en uygun dosyanın tam yolu (örn. kuvvet/2652236.jpg). '
+            'Konuyla gerçekten ilgisi olan yoksa null ver.\n' + satir)
+
+
 def gecerli(p):
     try:
         return (len(p["icerik"]) == 5 and len(p["kapak"]["baslik"]) <= 70 and len(p["kapanis"]["metin"]) <= 120
@@ -159,13 +168,15 @@ def main():
     print("Konu:", konu["konu"], "|", konu["kategori"])
     for _ in range(3):
         bilgi = f"Güncel bilgi (yalnızca bunlara dayan, üstüne ekleme yapma): {konu['bilgi']}\n" if konu.get("bilgi") else ""
-        post = claude(f"Konu: {konu['konu']}\nKategori: {konu['kategori']}\n{bilgi}\n{SEMA}", SISTEM)
+        post = claude(f"Konu: {konu['konu']}\nKategori: {konu['kategori']}\n{bilgi}\n{SEMA}\n{foto_listesi(gecmis)}", SISTEM)
         if gecerli(post):
             break
         print("Metin sınırlara uymadı, yeniden üretiliyor", file=sys.stderr)
     else:
         sys.exit("Uygun metin üretilemedi")
     post["konu"], post["kategori"] = konu["konu"], konu["kategori"]
+    if post.get("foto") not in json.load(open("foto_aciklama.json", encoding="utf-8")):
+        post["foto"] = None  # geçersiz seçim: render kategoriden seçer
     os.makedirs("out", exist_ok=True)
     json.dump(post, open("out/post.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
