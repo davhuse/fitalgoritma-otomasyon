@@ -64,7 +64,7 @@ def haberler():
     return "\n".join(f"- {t}" for t in dict.fromkeys(satir))
 
 
-GENEL = {"antre", "spor", "fitne", "sağlı", "egzer", "gerçe", "yapma", "nasıl", "nedir", "olur", "faydal", "zararl", "hareke"}
+GENEL = {"antre", "spor", "fitne", "sağlı", "egzer", "gerçe", "yapma", "nasıl", "nedir", "olur", "faydal", "zararl", "hareke", "dayan", "kuvve", "dünya", "şampi", "hazır", "mücad", "etkil", "dinam", "üst", "düzey", "ulaşm", "milli", "olası"}
 
 
 def benzer(konu, onceki):
@@ -91,7 +91,7 @@ def gundem_konu(gecmis):
 def _sec(ham, onceki):
     sec = claude("Aşağıda son günlerin fitness/spor/beslenme haber başlıkları var. Bunlardan Instagram karuseli için en merak uyandırıcı TEK konuyu seç. "
                  "Türkiye'deki fitness fenomenleri/sporcular (başlıklardaki isimler) ve yeni spor gelişmeleri hakkında haber varsa onları ÖNCELİKLİ seç, kişiyi konuda adıyla an. "
-                 "Dedikodu, özel hayat ve kanıtı zayıf ya da tehlikeli iddiaları seçme. "
+                 "Yalnızca antrenman, kas, beslenme, toparlanma ya da sağlıkla doğrudan bağ kurulabilen haberleri seç; futbol transferi, maç sonucu, kulüp ve dedikodu haberlerini seçme. Kanıtı zayıf ya da tehlikeli iddiaları da seçme. "
                  f"Şunlara benzer olmasın: {onceki}.\n\nBAŞLIKLAR:\n{ham[:5000]}\n\n"
                  'Sadece JSON ver: {"konu": "soru ya da iddia biçiminde başlık, haber başlığını kopyalama", "kategori": "'
                  + "|".join(KATEGORILER) + '", "bilgi": "bu konuda genel kabul görmüş bilimsel gerçekler; başlıktaki iddiayı doğrulanmadan tekrarlama, 600 karakteri geçmesin"}',
